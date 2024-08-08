@@ -1,7 +1,7 @@
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/components/ui/use-toast";
 import { FaSpinner } from "react-icons/fa";
 import { useState } from "react";
 import { useTheme } from "@/components/theme-provider";
@@ -75,8 +75,9 @@ export const Features = () => {
   const { theme } = useTheme();
   const [website, setWebsite] = useState("");
   const [websiteData, setWebsiteData] = useState<WebsiteData | null>(null);
+  const [geminiResponse, setGeminiResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast()
+  const { toast } = useToast();
 
   const inputColor = theme === "light" ? "grey" : "white";
 
@@ -84,22 +85,75 @@ export const Features = () => {
     setWebsite(e.target.value);
   };
 
+  const convertResponseToString = (data: WebsiteData): string => {
+    const formattedData = [
+      `Load Time: ${data.loadTime !== null ? `${data.loadTime} ms` : "N/A"}`,
+      `Request Size: ${
+        data.requestSize !== null ? `${data.requestSize} bytes` : "N/A"
+      }`,
+      `Request Count: ${
+        data.requestCount !== null ? data.requestCount : "N/A"
+      }`,
+      `Time to First Byte (TTFB): ${
+        data.ttfb !== null ? `${data.ttfb} ms` : "N/A"
+      }`,
+      `First Contentful Paint (FCP): ${
+        data.fcp !== null ? `${data.fcp} ms` : "N/A"
+      }`,
+      `Largest Contentful Paint (LCP): ${
+        data.lcp !== null ? `${data.lcp} ms` : "N/A"
+      }`,
+      `First Input Delay (FID): ${
+        data.fid !== null ? `${data.fid} ms` : "N/A"
+      }`,
+      `Time to Interactive (TTI): ${
+        data.tti !== null ? `${data.tti} ms` : "N/A"
+      }`,
+      `Cumulative Layout Shift (CLS): ${data.cls !== null ? data.cls : "N/A"}`,
+    ];
+
+    return formattedData.join(", ");
+  };
+
   const handleAnalyseClick = async () => {
     if (website) {
-      const urlPattern = /^(https?:\/\/)?([a-z0-9.-]+)\.([a-z]{2,6})([\/\w .-]*)*\/?$/i;
+      const urlPattern =
+        /^(https?:\/\/)?([a-z0-9.-]+)\.([a-z]{2,6})([\/\w .-]*)*\/?$/i;
       if (urlPattern.test(website)) {
         setIsLoading(true);
         try {
-          const response = await axios.post("http://localhost:3000/analyze", { url: website });
-  
+          const response = await axios.post("http://localhost:3000/analyze", {
+            url: website,
+          });
+
           if (response.status === 200) {
+            const resultString = convertResponseToString(response.data);
+            const geminiApiResponse = await axios.post(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${import.meta.env.VITE_API_KEY}`,
+              {
+                contents: [
+                  {
+                    parts: [
+                      {
+                        text: `Here are the website performance metrics for a website: ${resultString} GIVE ME POINTS OF INSIGHTS FOR EACH OF THESE METRICS. NO INTRODUCTION/CONCLUSION. BE PRECISE AND CRISP. GIVE THE OUTPUT STRICTLY IN THE FORMAT: 'Load time is slow, impacting user experience.\n Request size is large, potentially due to heavy assets.\n...'`,
+                      },
+                    ],
+                  },
+                ],
+              }
+            );
+
+            const insights =
+              geminiApiResponse.data.candidates[0].content.parts[0].text;
+            setGeminiResponse(insights);
             setWebsiteData(response.data);
           }
         } catch (error: any) {
           if (error.response) {
             const statusCode = error.response.status;
-  
-            if (statusCode === 429) { // Rate limiter error
+
+            if (statusCode === 429) {
+              // Rate limiter error
               toast({
                 title: "Rate Limit Exceeded",
                 description: "Too many requests. Please try again later.",
@@ -107,7 +161,8 @@ export const Features = () => {
             } else if (statusCode === 500) {
               toast({
                 title: "Server Error",
-                description: "There was an issue analyzing the website. Please try again later.",
+                description:
+                  "There was an issue analyzing the website. Please try again later.",
               });
             } else {
               toast({
@@ -118,7 +173,8 @@ export const Features = () => {
           } else if (error.request) {
             toast({
               title: "Network Error",
-              description: "No response from the server. Please check your connection.",
+              description:
+                "No response from the server. Please check your connection.",
             });
           } else {
             toast({
@@ -171,7 +227,11 @@ export const Features = () => {
           className="w-full md:w-1/2 mr-4 mt-4 border-white"
           style={{ borderColor: inputColor }}
         />
-        <Button onClick={handleAnalyseClick} className="mt-4" disabled={isLoading}>
+        <Button
+          onClick={handleAnalyseClick}
+          className="mt-4"
+          disabled={isLoading}
+        >
           {isLoading ? <FaSpinner className="animate-spin" /> : "Analyse"}
         </Button>
       </div>
@@ -191,13 +251,36 @@ export const Features = () => {
               </div>
               <p className="text-2xl font-bold mt-4">
                 {value !== null && typeof value === "number"
-                  ? key.includes("Time") || key === "ttfb" || key === "speedIndex"
+                  ? key.includes("Time") ||
+                    key === "ttfb" ||
+                    key === "speedIndex"
                     ? `${value.toFixed(2)} ms`
                     : value.toFixed(2)
                   : "-"}
               </p>
             </div>
           ))}
+        </div>
+      )}
+
+      {geminiResponse && (
+        <div className="mt-8 p-6 bg-white dark:bg-gray-900 rounded-md shadow-lg">
+          <h3 className="text-lg font-bold text-primary dark:text-primary-light mb-4">
+            Performance Insights:
+          </h3>
+          <ul className="list-disc list-inside space-y-2">
+            {geminiResponse
+              .split("\n")
+              .filter((insight) => insight.trim() !== "")
+              .map((insight, index) => (
+                <li
+                  key={index}
+                  className="text-md text-gray-800 dark:text-gray-300 leading-relaxed"
+                >
+                  {insight}
+                </li>
+              ))}
+          </ul>
         </div>
       )}
     </section>
