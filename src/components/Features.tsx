@@ -18,6 +18,7 @@ import {
   FaHandPointer,
   FaMap,
 } from "react-icons/fa";
+import { ResponsiveBar } from "@nivo/bar";
 
 const featureList: string[] = [
   "Page Load Time",
@@ -71,6 +72,18 @@ const fullFormMap: { [key: string]: string } = {
   cls: "Cumulative Layout Shift (CLS)",
 };
 
+const optimalValues = {
+  loadTime: 200,          // Aim for a fast load time, especially under 200 ms.
+  requestSize: 1000000,   // Keeping request size under 1 MB is often a good practice.
+  requestCount: 30,       // Reducing the number of requests can improve performance.
+  ttfb: 100,              // A TTFB under 100 ms is considered excellent.
+  fcp: 1500,              // First Contentful Paint ideally under 1.5 seconds.
+  lcp: 2000,              // Largest Contentful Paint should be under 2 seconds.
+  fid: 50,                // First Input Delay under 50 ms is ideal for responsiveness.
+  tti: 3000,              // Time to Interactive ideally under 3 seconds.
+  cls: 0.1,               // Cumulative Layout Shift under 0.1 is a good target.
+};
+
 export const Features = () => {
   const { theme } = useTheme();
   const [website, setWebsite] = useState("");
@@ -81,13 +94,19 @@ export const Features = () => {
 
   const inputColor = theme === "light" ? "grey" : "white";
 
-  const handleInputChange = (e: any) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setWebsite(e.target.value);
   };
 
   const convertResponseToString = (data: WebsiteData): string => {
+    const formatNumber = (num: number | null): string => {
+      return num !== null ? `${Math.round(num * 100) / 100}` : "N/A";
+    };
+
     const formattedData = [
-      `Load Time: ${data.loadTime !== null ? `${data.loadTime} ms` : "N/A"}`,
+      `Load Time: ${
+        data.loadTime !== null ? `${formatNumber(data.loadTime)} ms` : "N/A"
+      }`,
       `Request Size: ${
         data.requestSize !== null ? `${data.requestSize} bytes` : "N/A"
       }`,
@@ -95,21 +114,23 @@ export const Features = () => {
         data.requestCount !== null ? data.requestCount : "N/A"
       }`,
       `Time to First Byte (TTFB): ${
-        data.ttfb !== null ? `${data.ttfb} ms` : "N/A"
+        data.ttfb !== null ? `${formatNumber(data.ttfb)} ms` : "N/A"
       }`,
       `First Contentful Paint (FCP): ${
-        data.fcp !== null ? `${data.fcp} ms` : "N/A"
+        data.fcp !== null ? `${formatNumber(data.fcp)} ms` : "N/A"
       }`,
       `Largest Contentful Paint (LCP): ${
-        data.lcp !== null ? `${data.lcp} ms` : "N/A"
+        data.lcp !== null ? `${formatNumber(data.lcp)} ms` : "N/A"
       }`,
       `First Input Delay (FID): ${
-        data.fid !== null ? `${data.fid} ms` : "N/A"
+        data.fid !== null ? `${formatNumber(data.fid)} ms` : "N/A"
       }`,
       `Time to Interactive (TTI): ${
-        data.tti !== null ? `${data.tti} ms` : "N/A"
+        data.tti !== null ? `${formatNumber(data.tti)} ms` : "N/A"
       }`,
-      `Cumulative Layout Shift (CLS): ${data.cls !== null ? data.cls : "N/A"}`,
+      `Cumulative Layout Shift (CLS): ${
+        data.cls !== null ? formatNumber(data.cls) : "N/A"
+      }`,
     ];
 
     return formattedData.join(", ");
@@ -122,20 +143,22 @@ export const Features = () => {
       if (urlPattern.test(website)) {
         setIsLoading(true);
         try {
-          const response = await axios.post("http://localhost:3000/analyze", {
+          const response = await axios.post("http://44.202.165.38/analyze", {
             url: website,
           });
 
           if (response.status === 200) {
             const resultString = convertResponseToString(response.data);
             const geminiApiResponse = await axios.post(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${import.meta.env.VITE_API_KEY}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
+                import.meta.env.VITE_API_KEY
+              }`,
               {
                 contents: [
                   {
                     parts: [
                       {
-                        text: `Here are the website performance metrics for a website: ${resultString} GIVE ME POINTS OF INSIGHTS FOR EACH OF THESE METRICS. NO INTRODUCTION/CONCLUSION. BE PRECISE AND CRISP. GIVE THE OUTPUT STRICTLY IN THE FORMAT: 'Load time is slow, impacting user experience.\n Request size is large, potentially due to heavy assets.\n...'`,
+                        text: `Here are the website performance metrics for a website: ${resultString} GIVE ME POINTS OF INSIGHTS FOR EACH OF THESE METRICS. NO INTRODUCTION/CONCLUSION. BE PRECISE AND CRISP. GIVE THE OUTPUT STRICTLY IN THE FORMAT: INSIGHTS SEPARATED BY '\n'. Example: "Load Time of 358.43ms suggests website is loading relatively quickly.\n...`,
                       },
                     ],
                   },
@@ -153,7 +176,6 @@ export const Features = () => {
             const statusCode = error.response.status;
 
             if (statusCode === 429) {
-              // Rate limiter error
               toast({
                 title: "Rate Limit Exceeded",
                 description: "Too many requests. Please try again later.",
@@ -198,6 +220,86 @@ export const Features = () => {
       });
     }
   };
+
+  const MetricChart = ({
+    metric,
+    current,
+    optimal,
+  }: {
+    metric: string;
+    current: number | null;
+    optimal: number;
+  }) => {
+    const formattedCurrent = typeof current === "number" ? parseFloat(current.toFixed(2)) : 0;
+  
+    return (
+      <div className="h-64 w-full">
+        <ResponsiveBar
+          data={[
+            {
+              metric: "Current",
+              value: formattedCurrent,
+            },
+            {
+              metric: "Optimal",
+              value: optimal,
+            },
+          ]}
+          keys={["value"]}
+          indexBy="metric"
+          margin={{ top: 10, right: 10, bottom: 50, left: 60 }}
+          padding={0.3}
+          valueScale={{ type: "linear" }}
+          indexScale={{ type: "band", round: true }}
+          colors={({ id }) => (id === "Current" ? "#6366f1" : "#22c55e")}
+          axisBottom={{
+            tickSize: 5,
+            tickPadding: 5,
+            tickRotation: 0,
+            tickColor: "white",
+            legend: metric,
+            legendPosition: "middle",
+            legendOffset: 40,
+            legendTextColor: "white",
+          }}
+          axisLeft={{
+            tickSize: 5,
+            tickPadding: 5,
+            tickRotation: 0,
+            tickColor: "white",
+            legendPosition: "middle",
+            legendOffset: -50,
+            legendTextColor: "white",
+          }}
+          labelSkipWidth={12}
+          labelSkipHeight={12}
+          labelTextColor={{
+            from: "color",
+            modifiers: [["darker", 1.6]],
+          }}
+          theme={{
+            axis: {
+              ticks: {
+                text: {
+                  fill: "white",
+                },
+              },
+              legend: {
+                text: {
+                  fill: "white",
+                },
+              },
+            },
+          }}
+          role="application"
+          ariaLabel={`${metric} chart`}
+          barAriaLabel={(e) => `${e.id}: ${e.formattedValue} for ${e.indexValue}`}
+        />
+      </div>
+    );
+  };
+  
+  
 
   return (
     <section id="features" className="container py-24 sm:py-32 space-y-8">
@@ -244,24 +346,52 @@ export const Features = () => {
               className="bg-card dark:bg-card-dark p-6 rounded-md shadow-md dark:shadow-none transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold">{fullFormMap[key]}</h3>
+                <h3 className="text-lg font-bold">
+                  {fullFormMap[key as keyof typeof fullFormMap]}
+                </h3>
                 <span className="text-3xl text-primary dark:text-primary-dark">
-                  {iconMap[key]}
+                  {iconMap[key as keyof typeof iconMap]}
                 </span>
               </div>
               <p className="text-2xl font-bold mt-4">
-                {value !== null && typeof value === "number"
-                  ? key.includes("Time") ||
+                {value !== null
+                  ? key === "loadTime" ||
                     key === "ttfb" ||
-                    key === "speedIndex"
-                    ? `${value.toFixed(2)} ms`
-                    : value.toFixed(2)
+                    key === "fcp" ||
+                    key === "lcp" ||
+                    key === "fid" ||
+                    key === "tti"
+                    ? `${Number(value).toFixed(2)} ms`
+                    : key === "requestSize"
+                    ? `${Number(value).toLocaleString()} bytes`
+                    : key === "requestCount"
+                    ? value.toString()
+                    : key === "cls"
+                    ? Number(value).toFixed(4)
+                    : typeof value === "number"
+                    ? value.toFixed(2)
+                    : value
                   : "-"}
               </p>
             </div>
           ))}
         </div>
       )}
+
+      {websiteData && (
+        <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {Object.entries(websiteData).map(([key, value]) => (
+            <MetricChart
+              key={key}
+              metric={fullFormMap[key as keyof typeof fullFormMap]}
+              current={value}
+              optimal={optimalValues[key as keyof typeof optimalValues]}
+            />
+          ))}
+        </div>
+      )}
+
+      <br></br>
 
       {geminiResponse && (
         <div className="mt-8 p-6 bg-white dark:bg-gray-900 rounded-md shadow-lg">
