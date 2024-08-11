@@ -158,7 +158,7 @@ export const Features = () => {
                   {
                     parts: [
                       {
-                        text: `Here are the website performance metrics for a website: ${resultString} GIVE ME POINTS OF INSIGHTS FOR EACH OF THESE METRICS. NO INTRODUCTION/CONCLUSION. BE PRECISE AND CRISP. GIVE THE OUTPUT STRICTLY IN THE FORMAT: INSIGHTS SEPARATED BY '\n'. Example: "Load Time of 358.43ms suggests website is loading relatively quickly.\n...`,
+                        text: `Here are the website performance metrics for a website: ${resultString} GIVE ME POINTS OF INSIGHTS FOR EACH OF THESE METRICS. NO INTRODUCTION/CONCLUSION. BE PRECISE AND CRISP. DON'T ADD ANY TEXT DECORATION OR FORMATTING. GIVE THE OUTPUT STRICTLY IN THE FORMAT: INSIGHTS SEPARATED BY '\n'. Example: "Load Time of 358.43ms suggests website is loading relatively quickly.\n...`,
                       },
                     ],
                   },
