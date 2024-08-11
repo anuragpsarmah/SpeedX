@@ -143,7 +143,7 @@ export const Features = () => {
       if (urlPattern.test(website)) {
         setIsLoading(true);
         try {
-          const response = await axios.post("http://18.212.178.130/analyze", {
+          const response = await axios.post("http://localhost:3000/analyze", {
             url: website,
           });
 
