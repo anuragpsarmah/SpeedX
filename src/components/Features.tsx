@@ -143,7 +143,7 @@ export const Features = () => {
       if (urlPattern.test(website)) {
         setIsLoading(true);
         try {
-          const response = await axios.post("http://localhost:3000/analyze", {
+          const response = await axios.post(`${import.meta.env.VITE_ANALYZE_ENDPOINT}/analyze`, {
             url: website,
           });
 
@@ -151,7 +151,7 @@ export const Features = () => {
             const resultString = convertResponseToString(response.data);
             const geminiApiResponse = await axios.post(
               `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${
-                import.meta.env.VITE_API_KEY
+                import.meta.env.VITE_GEMINI_API_KEY
               }`,
               {
                 contents: [
