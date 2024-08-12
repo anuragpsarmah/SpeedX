@@ -1,3 +1,5 @@
+<p align="center"><a href="https://github.com/anuragpsarmah/SpeedX-Frontend">Frontend</a>&nbsp;&nbsp;<a href="https://github.com/anuragpsarmah/SpeedX-Backend">Backend</a></p>
+
 # About SpeedX
 
 SpeedX is a tool designed to monitor and analyze website performance, helping developers and site owners optimize their pages for speed and efficiency. With SpeedX, you can gain detailed insights into various performance metrics that directly impact user experience.
